@@ -10,11 +10,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import requests
 from selenium.common.exceptions import StaleElementReferenceException, ElementNotInteractableException, TimeoutException
+import sqlite3
 from retry import retry  # Make sure to install the 'retry' module (pip install retry)
 import mysql.connector
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-webdriver_service = Service(ChromeDriverManager().install())
+
 # Replace these with your actual database connection details
 db_params = {
     'host': 'database-1.c6x5n1s4dnxc.ap-south-1.rds.amazonaws.com',
@@ -26,11 +25,10 @@ db_params = {
 # Connect to MySQL server
 connection = mysql.connector.connect(**db_params)
 cursor = connection.cursor()
-
-
 async def send_telegram_message(bot_token, group_chat_id, message_text):
     bot = Bot(token=bot_token)
     await bot.send_message(chat_id=group_chat_id, text=message_text)
+
 
 
 def is_element_present(driver, by, value, timeout=10):
@@ -72,7 +70,6 @@ for row in rows:
 cursor.close()
 connection.close()
 
-
 @retry((ConnectionError, Timeout), tries=10, delay=2, backoff=2)
 def shorten_url(api_key, destination_url, custom_alias=None):
     try:
@@ -103,9 +100,8 @@ def scraping(start_page, end_page, imagesrc, downloadlinks, allongoing, lock):
     chrome_options.add_argument('--ignore-ssl-errors=yes')
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument(f"referer={referer}")
-    webdriver_service = Service(ChromeDriverManager().install())
 
-    driver = webdriver.Chrome(service=webdriver_service,options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options)
     # driver.implicitly_wait(20)
 
     local_imagesrc = []
@@ -156,7 +152,7 @@ def scraping(start_page, end_page, imagesrc, downloadlinks, allongoing, lock):
 
 
 if __name__ == '__main__':
-    num_processes = 16
+    num_processes = 4
 
     # Specify the start and end page numbers
     start_page = 100
@@ -195,14 +191,42 @@ if __name__ == '__main__':
     print(f"Length of allongoing list: {allongoing_length}")
 
 
-def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_options):
+def process_download_link(thread_id, imagesrc, link_queue, allongoing):
     # Create a new WebDriver instance for each thread
-    global resolution, resolution
+    global resolution
     try:
-        # Initialize Firefox WebDriver with the configured options
-        webdriver_service = Service(ChromeDriverManager().install())
+        chrome_options = webdriver.ChromeOptions()
+        # chrome_options.add_argument("--headless")
+        user_agent = "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.5845.92 Mobile Safari/537.36"
+        chrome_options.add_argument(f"user-agent={user_agent}")
+        referer = "https://moviesmod.shop/"
+        chrome_options.add_argument('--disable-gpu')  # Required in some cases for headless mode
+        chrome_options.add_argument('--disable-infobars')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument("--enable-javascript")
+        chrome_options.add_argument('--disable-features=VizDisplayCompositor')
+        # chrome_options.add_experimental_option("prefs", {"profile.managed_default_content_settings.images": 2})
+        # chrome_options.add_argument('--disable-logging')
+        chrome_options.add_argument('--pageLoadStrategy=normal')
+        # chrome_options.add_argument("--auto-open-devtools-for-tabs")
+        # chrome_options.add_argument("--host-resolver-rules=MAP * 127.0.0.1")
+        # chrome_options.add_argument("--proxy-server='direct://'")
+        # chrome_options.add_argument("--proxy-bypass-list=*")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--headless")  # Optional, for headless mode
+        #
+        # # Enable caching for Chrome
+        # chrome_options.add_argument("--disk-cache-dir=/tmp/cache")
+        # chrome_options.add_argument("--disk-cache-size=10485760")
+        #
+        # chrome_options.add_argument('--ignore-ssl-errors=yes')
+        # chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument(f"referer={referer}")
 
-        driver = webdriver.Chrome(service=webdriver_service,options=chrome_options)
+        # Initialize Firefox WebDriver with the configured options
+        driver = webdriver.Chrome(options=chrome_options)
         # driver.set_page_load_timeout(60)  # Set timeout in seconds
 
         # driver.implicitly_wait(16)
@@ -289,7 +313,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                             zipfilel = zipf.get_attribute('href')
                             zipfilelinks.append(zipfilel)
                     zipchecker = len(zipfilelinks)
-                    if zipchecker == 0:
+                    if zipchecker==0:
                         continue
                     seriesdownloadlink = []
                     sdbutton = driver.find_elements(By.CSS_SELECTOR,
@@ -352,7 +376,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                         driver.get(episodedownloadlink[i])
                                     except Exception as e:
                                         try:
-                                            # Handle the ERR_CONNECTION_CLOSED error by refreshing the page
+                                        # Handle the ERR_CONNECTION_CLOSED error by refreshing the page
                                             driver.get(episodedownloadlink[i])
                                             print("Page refreshed due to ERR_CONNECTION_CLOSED error. in episodedlink")
                                         except:
@@ -377,9 +401,9 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                                                     button2.dispatchEvent(new Event("click"));
                                                                     var button3 = document.getElementById("verify_button");
                                                                     button3.style.visibility = "visible";
-
+    
                                                                     button3.dispatchEvent(new Event("click"));
-
+    
                                                                     var button4 = document.getElementById("two_steps_btn");
                                                                     button4.style.display = "block";
                                                                     """)
@@ -412,8 +436,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                             driver.execute_script("""document.getElementById('landing').submit();""")
                                             wait = WebDriverWait(driver, 10)  # Set a timeout of 10 seconds
 
-                                            element = wait.until(
-                                                EC.presence_of_element_located((By.ID, 'verify_button2')))
+                                            element = wait.until(EC.presence_of_element_located((By.ID, 'verify_button2')))
                                             if element:
                                                 driver.execute_script("""var ubPopupContent = document.querySelector(".ub-popupcontent");
                                                                         if (ubPopupContent) {
@@ -424,9 +447,9 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                                                         button2.dispatchEvent(new Event("click"));
                                                                         var button3 = document.getElementById("verify_button");
                                                                         button3.style.visibility = "visible";
-
+    
                                                                         button3.dispatchEvent(new Event("click"));
-
+    
                                                                         var button4 = document.getElementById("two_steps_btn");
                                                                         button4.style.display = "block";
                                                                         """)
@@ -462,7 +485,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                     except:
 
                                         if driver.current_url.startswith('https://driveseed.org/file/'):
-                                            try16 = True
+                                            try16=True
                                         else:
                                             print(
                                                 f"could make sure if this is the final downloadlink : {driver.current_url}")
@@ -511,7 +534,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                         try:
                                             api_key = "18ea1c83b795f1f3809ac4c3faad54670542d275"
                                             destination_url = c_url
-                                            scopy = None
+                                            scopy=None
                                             try:
                                                 scopy = shorten_url(api_key, destination_url)
                                             except:
@@ -731,7 +754,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                         print(movie_descrp)
                         # print(imagesourceurl)
 
-                        allsdirectlinks = '\n'.join(allepidirectlinks)
+                        allsdirectlinks='\n'.join(allepidirectlinks)
                         if allsdirectlinks:
                             print(f"all episode dirextlinks : {allsdirectlinks}")
                         final_captions = ''.join(captions)
@@ -747,9 +770,8 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                         connection = mysql.connector.connect(**db_params)
                         cursor = connection.cursor()
 
-                        cursor.execute(
-                            'INSERT INTO series (image_url,movie_descrp,links,org_links) VALUES(%s, %s,%s,%s)',
-                            (imagesourceurl, movie_descrp, final_captions, allsdirectlinks))
+                        cursor.execute('INSERT INTO series (image_url,movie_descrp,links,org_links) VALUES(%s, %s,%s,%s)',
+                                       (imagesourceurl, movie_descrp, final_captions,allsdirectlinks))
                         connection.commit()
                         if ongoingseries:
                             for key, nested_values in ongoingseriesepilist.items():
@@ -764,7 +786,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                         print('checking for zip files')
                         captions = []
                         season_encountered = set()
-                        allzipdirectlinks = []
+                        allzipdirectlinks=[]
 
                         for i in range(zipfilecount):
                             shortlink480p = None
@@ -831,17 +853,16 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                     button2.dispatchEvent(new Event("click"));
                                     var button3 = document.getElementById("verify_button");
                                     button3.style.visibility = "visible";
-
+    
                                     button3.dispatchEvent(new Event("click"));
-
+    
                                     var button4 = document.getElementById("two_steps_btn");
                                     button4.style.display = "block";
                                     """)
 
                                     wait = WebDriverWait(driver, 10)  # Set a timeout of 10 seconds
 
-                                    element2 = wait.until(
-                                        EC.presence_of_element_located((By.LINK_TEXT, 'GO TO DOWNLOAD')))
+                                    element2 = wait.until(EC.presence_of_element_located((By.LINK_TEXT, 'GO TO DOWNLOAD')))
                                     if element2:
                                         driver.execute_script("""var button4 = document.getElementById("two_steps_btn");
                                             button4.click()""")
@@ -1000,7 +1021,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                     #         pass
                                     #     elif f"\n★★★★★★★★★★★★★★\nSeason {seasoncounter+1}" not in captions:
                                     #         iteration_caption += f'\n★★★★★★★★★★★★★★\nSeason {seasoncounter+1}'
-                                    # seasoncounter+=1
+                                        # seasoncounter+=1
                                     # Define a dictionary for the season mappings
                                     if shortlink480p:
                                         iteration_caption += '\n' + '480p - ' + shortlink480p
@@ -1036,7 +1057,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                             fullcaption += final_captions
                             fullcaption += "\n@projectorparadise"
                             print(fullcaption)
-                            allzdirectlinks = '\n'.join(allzipdirectlinks)
+                            allzdirectlinks='\n'.join(allzipdirectlinks)
                             if allzdirectlinks:
                                 print(f"all zip file links : {allzdirectlinks}")
                             db_params = {
@@ -1048,17 +1069,17 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
 
                             # Connect to MySQL server
                             if "★★★★★★★★★★★★★★" not in fullcaption:
+
                                 bot_token = '6407514901:AAHU4wk67IGgKQIUslHGiMotggWZmwKFf90'
                                 group_chat_id = '@barryallen16projectgroup'
-                                text = f"no season mentioned : {allzdirectlinks}"
+                                text=f"no season mentioned : {allzdirectlinks}"
                                 loop = asyncio.get_event_loop()
                                 loop.run_until_complete(send_telegram_message(bot_token, group_chat_id, text))
 
                             connection = mysql.connector.connect(**db_params)
                             cursor = connection.cursor()
 
-                            cursor.execute('INSERT INTO zip (image_url,links,org_links) VALUES(%s, %s,%s)',
-                                           (imagesourceurl, fullcaption, allzdirectlinks))
+                            cursor.execute('INSERT INTO zip (image_url,links,org_links) VALUES(%s, %s,%s)', (imagesourceurl, fullcaption,allzdirectlinks))
                             connection.commit()
                             connection.close()
 
@@ -1081,7 +1102,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                         shortlink1080px264 = None
                         shortlink720px264 = None
                         shortlink480px264 = None
-                        allmoviedirectlinks = []
+                        allmoviedirectlinks=[]
 
                         for i in range(cdb):
 
@@ -1148,9 +1169,9 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
         button2.dispatchEvent(new Event("click"));
         var button3 = document.getElementById("verify_button");
         button3.style.visibility = "visible";
-
+    
         button3.dispatchEvent(new Event("click"));
-
+    
         var button4 = document.getElementById("two_steps_btn");
         button4.style.display = "block";
         """)
@@ -1226,7 +1247,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                     try:
                                         api_key = "18ea1c83b795f1f3809ac4c3faad54670542d275"
                                         destination_url = c_url
-                                        scopy = None
+                                        scopy=None
                                         try:
                                             scopy = shorten_url(api_key, destination_url)
                                         except:
@@ -1270,7 +1291,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                         if unbrokenlink:
                             captions = []
                             caption3 = ""
-                            allmdirectlinks = '\n'.join(allmoviedirectlinks)
+                            allmdirectlinks='\n'.join(allmoviedirectlinks)
                             if allmdirectlinks:
                                 print(allmdirectlinks)
                             resolution_links = {
@@ -1314,7 +1335,7 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
                                 except:
                                     continue
                             cursor.execute('INSERT INTO movies (image_url,caption,org_links) VALUES(%s, %s,%s)',
-                                           (imagesourceurl, all_captions, allmdirectlinks))
+                                           (imagesourceurl, all_captions,allmdirectlinks))
                             connection.commit()
                             connection.close()
     except TimeoutException:
@@ -1333,34 +1354,6 @@ def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_op
             pass
 
 
-chrome_options = webdriver.ChromeOptions()
-# chrome_options.add_argument("--headless")
-user_agent = "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.5845.92 Mobile Safari/537.36"
-chrome_options.add_argument(f"user-agent={user_agent}")
-referer = "https://moviesmod.shop/"
-chrome_options.add_argument('--disable-gpu')  # Required in some cases for headless mode
-chrome_options.add_argument('--disable-infobars')
-chrome_options.add_argument('--disable-extensions')
-chrome_options.add_argument('--disable-dev-shm-usage')
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--disable-features=VizDisplayCompositor')
-# chrome_options.add_experimental_option("prefs", {"profile.managed_default_content_settings.images": 2})
-# chrome_options.add_argument('--disable-logging')
-chrome_options.add_argument('--pageLoadStrategy=normal')
-# chrome_options.add_argument("--auto-open-devtools-for-tabs")
-# chrome_options.add_argument("--host-resolver-rules=MAP * 127.0.0.1")
-# chrome_options.add_argument("--proxy-server='direct://'")
-# chrome_options.add_argument("--proxy-bypass-list=*")
-chrome_options.add_argument("--disable-extensions")
-chrome_options.add_argument("--headless")  # Optional, for headless mode
-#
-# # Enable caching for Chrome
-# chrome_options.add_argument("--disk-cache-dir=/tmp/cache")
-# chrome_options.add_argument("--disk-cache-size=10485760")
-#
-# chrome_options.add_argument('--ignore-ssl-errors=yes')
-# chrome_options.add_argument('--ignore-certificate-errors')
-chrome_options.add_argument(f"referer={referer}")
 
 # Your list of download links
 if __name__ == '__main__':
@@ -1395,7 +1388,7 @@ if __name__ == '__main__':
     processes = []
     for i in range(num_processes):
         process = multiprocessing.Process(target=process_download_link,
-                                          args=(i, imagesrc_queue, link_queue, allongoing, chrome_options))
+                                          args=(i, imagesrc_queue, link_queue, allongoing))
         processes.append(process)
         process.start()
 
@@ -1408,7 +1401,7 @@ if __name__ == '__main__':
     # Calculate the total execution time
     total_time = end_time - start_time
     print(f"Total time taken: {total_time} seconds")
-    endingmessage = f"Total time taken: {total_time} seconds"
+    endingmessage=f"Total time taken: {total_time} seconds"
     bot_token = '6407514901:AAHU4wk67IGgKQIUslHGiMotggWZmwKFf90'
     group_chat_id = '@barryallen16projectgroup'
 
