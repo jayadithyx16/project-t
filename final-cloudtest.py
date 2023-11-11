@@ -10,9 +10,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import requests
 from selenium.common.exceptions import StaleElementReferenceException, ElementNotInteractableException, TimeoutException
-import sqlite3
 from retry import retry  # Make sure to install the 'retry' module (pip install retry)
 import mysql.connector
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 webdriver_service = Service(ChromeDriverManager().install())
 # Replace these with your actual database connection details
@@ -156,11 +156,11 @@ def scraping(start_page, end_page, imagesrc, downloadlinks, allongoing, lock):
 
 
 if __name__ == '__main__':
-    num_processes = 32
+    num_processes = 16
 
     # Specify the start and end page numbers
     start_page = 100
-    end_page = 200
+    end_page = 100
 
     imagesrc = multiprocessing.Manager().list()
     downloadlinks = multiprocessing.Manager().list()
@@ -197,6 +197,7 @@ if __name__ == '__main__':
 
 def process_download_link(thread_id, imagesrc, link_queue, allongoing, chrome_options):
     # Create a new WebDriver instance for each thread
+    global resolution, resolution
     try:
         # Initialize Firefox WebDriver with the configured options
         webdriver_service = Service(ChromeDriverManager().install())
@@ -1388,7 +1389,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # Determine the number of processes
-    num_processes = 32
+    num_processes = 16
 
     # Create and start the processes
     processes = []
