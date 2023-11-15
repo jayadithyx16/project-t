@@ -156,11 +156,11 @@ def scraping(start_page, end_page, imagesrc, downloadlinks, allongoing, lock):
 
 
 if __name__ == '__main__':
-    num_processes = 1
+    num_processes = 16
 
     # Specify the start and end page numbers
-    start_page = 500
-    end_page = 500
+    start_page = 1
+    end_page = 30
 
     imagesrc = multiprocessing.Manager().list()
     downloadlinks = multiprocessing.Manager().list()
@@ -2532,10 +2532,9 @@ if __name__ == '__main__':
         imagesrc_queue.put(images)
 
     start_time = time.time()
-    number=len(imagesrc)% 50
-    print(number)
+    
     # Determine the number of processes
-    num_processes = number
+    num_processes = 32
 
     # Create and start the processes
     processes = []
