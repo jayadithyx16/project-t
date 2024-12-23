@@ -1,0 +1,12 @@
+sudo apt update
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+sudo apt install -y -f
+wget 	https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chromedriver-linux64.zip
+unzip chromedriver-linux64.zip
+sudo mv  chromedriver-linux64/chromedriver /usr/local/bin/
+google-chrome --version
+chromedriver --version
+sudo apt install python3-pip
+sudo apt install git
+pip install selenium
